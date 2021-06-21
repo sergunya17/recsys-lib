@@ -2,6 +2,9 @@
 Loaders for recsys dataset.
 """
 
+import os
+from typing import List
+
 import numpy as np
 import pandas as pd
 
@@ -64,3 +67,58 @@ class InteractionData:
             interaction_matrix[row.user_id, row.item_id] = row.value
 
         return interaction_matrix
+
+class ObjectFeaturesData:
+    """Data loader for object features.
+
+    Parameters
+    ----------
+    folder_path : str
+        Path to folder containing ``.csv`` files. Each file must be named like
+        ``<object_prefix><delimiter><feature>.csv`` and contain at least 2 columns.
+        The first one is the object id, the others are the attribute columns:
+        `object_id`, `feature_column_1`, ..., `feature_column_n`.
+    object_prefix : str
+        Filename prefix - object name. E.g., 'user' or 'item'.
+    delimiter : str, default '_'
+        Separator between ``<object_prefix>`` and ``<feature>``.
+    """
+
+    def __init__(self, folder_path: str, object_prefix: str,
+                 delimiter: str = '_'):
+
+        self.folder_path = folder_path
+        self.object_prefix = object_prefix
+        self.delimiter = delimiter
+
+    def load(self, features: List[str], **kwargs) -> pd.DataFrame:
+        """Load object features as one DataFrame.
+
+        Parameters
+        ----------
+        features : list of str
+            List of feature names.
+        **kwargs : dict
+            Additional arguments to be passed to ``pd.read_csv``.
+
+        Returns
+        -------
+        DataFrame
+            DataFrame contains `all` columns from files merged on `object_id`.
+        """
+
+        result_df = pd.DataFrame(columns=['id'])
+        for feature in features:
+            path = os.path.join(self.folder_path,
+                                f'{self.object_prefix}{self.delimiter}{feature}.csv')
+            feature_df = pd.read_csv(path, **kwargs)
+
+            new_columns = [f'{feature}_{column}' for column in feature_df.columns]
+            new_columns[0] = 'id'
+            feature_df.columns = new_columns
+
+            result_df = result_df.merge(feature_df, how='outer', on='id')
+
+        result_df = result_df.rename(columns={'id': f'{self.object_prefix}_id'})
+
+        return result_df
