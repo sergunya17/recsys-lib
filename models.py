@@ -143,3 +143,66 @@ class KNNBasedModel(RecommendationModel):
             pred_interactions = pred_interactions.T
 
         return pred_interactions
+
+class SVDBasedModel(RecommendationModel):
+    """SVD-based recommendation model.
+
+    Parameters
+    ----------
+    k : int, default=10
+        The number of singular values and vectors to compute.
+        Must be 1 <= k < min(train_interactions.shape).
+    """
+
+    def __init__(self, k: int = 10):
+
+        if k <= 0:
+            raise ValueError(f'Expected k > 0. Got {k}.')
+
+        super().__init__()
+        self.k = k
+        self._u: Optional[np.ndarray] = None
+        self._sigma: Optional[np.ndarray] = None
+        self._vt: Optional[np.ndarray] = None
+
+    def fit(self, train_interactions: np.ndarray):
+        """Train model.
+
+        Parameters
+        ----------
+        train_interactions : ndarray
+            Two-dimensional numpy array, where `pred_interactions[user_id, item_id] = 1`
+            corresponds to the true interaction.
+
+        Returns
+        -------
+        self : returns an instance of self.
+        """
+
+        self._train_interactions = train_interactions.copy()
+        self._u, self._sigma, self._vt = np.linalg.svd(self._train_interactions,
+                                                       full_matrices=False)
+        self._sigma = np.diag(self._sigma)
+
+        return self
+
+    def predict_proba(self) -> np.ndarray:
+        """Predict interactions probabilities.
+
+        Returns
+        -------
+        pred_interactions : ndarray
+            Two-dimensional numpy array, where `pred_interactions[user_id, item_id] = probability`
+            corresponds to the `predicted` interaction `probability`.
+        """
+
+        sigma_k = self._sigma[0:self.k, 0:self.k]
+        u_k = self._u[:, 0:self.k]
+        vt_k = self._vt[0:self.k, :]
+
+        pred_interactions = np.dot(np.dot(u_k, sigma_k), vt_k)
+
+        pred_interactions -= pred_interactions.min()
+        pred_interactions /= pred_interactions.max()
+
+        return pred_interactions
