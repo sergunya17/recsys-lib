@@ -29,7 +29,7 @@ def mean_average_precision(true_interactions: np.ndarray, pred_interactions: np.
 
     for user in test_users:
         user_true_interactions = true_interactions[user].nonzero()[0]
-        user_pred_interactions = pred_interactions[user].nonzero()[0]
+        user_pred_interactions = pred_interactions[user]
 
         match = np.isin(user_pred_interactions, user_true_interactions)
         precision_k = np.cumsum(match) / np.arange(1, match.shape[0] + 1)
@@ -37,6 +37,6 @@ def mean_average_precision(true_interactions: np.ndarray, pred_interactions: np.
 
         average_precisions.append(average_precision_k)
 
-    map_score = np.mean(average_precisions)
+    map_score = float(np.mean(average_precisions))
 
-    return float(map_score)
+    return map_score
