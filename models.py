@@ -40,8 +40,9 @@ class RecommendationModel(ABC):
         Returns
         -------
         pred_interactions : ndarray
-            Two-dimensional numpy array, where `pred_interactions[user_id, item_id] = 1`
-            corresponds to the `predicted` interaction.
+            Two-dimensional numpy array, where `pred_interactions[user_id]` contains a list
+            of predicted `item_id`'s of length `k_items`. The values are sorted in descending
+            order of model confidence.
         """
 
         if k_items <= 0:
@@ -50,10 +51,29 @@ class RecommendationModel(ABC):
         pred_all_interactions = self.predict_proba()
 
         candidate_interactions = (1 - self._train_interactions) * pred_all_interactions
-        top_k_interactions_indexes = np.argsort(candidate_interactions,
-                                                axis=1)[:, ::-1][:, :k_items]
+        pred_interactions = np.argsort(candidate_interactions,
+                                       axis=1)[:, ::-1][:, :k_items]
 
-        pred_k_interactions = np.zeros(pred_all_interactions.shape)
+        return pred_interactions
+
+    def predict_matrix(self, k_items: int) -> np.ndarray:
+        """Predict k items for each user.
+
+        Parameters
+        ----------
+        k_items : int
+            The number of predicted items per user.
+
+        Returns
+        -------
+        pred_interactions : ndarray
+            Two-dimensional numpy array, where `pred_interactions[user_id, item_id] = 1`
+            corresponds to the `predicted` interaction.
+        """
+
+        top_k_interactions_indexes = self.predict(k_items)
+
+        pred_k_interactions = np.zeros(self._train_interactions.shape)
         first_indexes = np.repeat(np.arange(top_k_interactions_indexes.shape[0]), k_items)
         second_indexes = top_k_interactions_indexes.flatten()
         pred_k_interactions[first_indexes, second_indexes] = 1
